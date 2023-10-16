@@ -1,0 +1,43 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  list:
+    cmds:
+      - fd '/(opt|start)/.*' ./pack --full-path -t directory -d 3
+  fetch:
+    vars:
+      script: |
+        ls pack/*/*/*/.git |
+          select name |
+          par-each { |path|
+            git -C $path.name fetch orig
+          }
+    cmds:
+      - nu -c {{ shellQuote .script }}
+
+  ls:
+    vars:
+      script: |
+        ls pack/*/*/*/.git |
+          select name |
+          par-each { |path|
+            let age = git -C (dirname $path.name) log -1 --format="%aI" | into datetime
+            {
+              name: $path.name,
+              age: $age
+            }
+          } |
+          sort-by age
+    cmds:
+      - nu -c {{ shellQuote .script }}
+  update:
+    vars:
+      script: |
+        let dir = (ls pack/*/*/* | select name | to csv | fzf)
+        if $dir != "" {
+          git -C $dir pull
+        }
+    cmds:
+      - nu -c {{ shellQuote .script }}
