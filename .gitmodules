@@ -346,3 +346,9 @@
 [submodule "pack/user/opt/nvim-treeclimber"]
 	path = pack/user/opt/nvim-treeclimber
 	url = git@github.com:Dkendal/nvim-treeclimber.git
+[submodule "pack/NeogitOrg/opt/neogit"]
+	path = pack/NeogitOrg/opt/neogit
+	url = git@github.com:NeogitOrg/neogit.git
+[submodule "pack/sindrets/opt/diffview.nvim"]
+	path = pack/sindrets/opt/diffview.nvim
+	url = https://github.com/sindrets/diffview.nvim
