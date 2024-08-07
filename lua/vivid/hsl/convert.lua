@@ -3,8 +3,8 @@
 -- RGB -> HSL and HSL -> RGB adapted from
 -- https://github.com/EmmanuelOga/columns/blob/master/utils/color.lua
 
-local round = require('nvim-treeclimber.math').round
-local rgb_convert = require('nvim-treeclimber.vivid.rgb.convert')
+local round = require('vivid.math').round
+local rgb_convert = require('vivid.rgb.convert')
 
 local function hsl_to_rgb(hsl)
   local r, g, b

@@ -1,3 +1,4 @@
+-- DEPRECATED
 local hsluv = require("vivid.hsluv.type")
 local hsl = require("vivid.hsl.type")
 

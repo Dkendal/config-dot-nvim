@@ -6,6 +6,34 @@ tasks:
   list:
     cmds:
       - fd '/(opt|start)/.*' ./pack --full-path -t directory -d 3
+
+  list:unused:
+    cmd: 'nu -c {{shellQuote .script}}'
+    vars:
+      script: |
+        let used_pkgs = (grep packadd ./init.lua | cut -d '"' -f 2 | lines)
+
+        let used_pkgs = $used_pkgs | each { |name|
+          let tokens = $name | split column '/' | first
+          if (($tokens.column2? | is-empty) == false) {
+            $tokens.column1 ++ '/opt/' ++ $tokens.column2?
+          } else {
+            'opt/' ++ $tokens.column1
+          }
+        }
+
+        print $used_pkgs
+
+        pkgs = (
+          ls ./pack/*/*/* | par-each { |stat|
+            let used = ($used_pkgs | any { |pkg|
+              $stat.name ends-with $pkg
+            })
+
+            $stat | insert used ($used | into string)
+          } | sort-by used
+        )
+
   fetch:
     vars:
       script: |

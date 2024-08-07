@@ -1,11 +1,10 @@
 local M = {}
 
-local which_key = require("which-key")
-local ts = require("telescope.builtin")
-local Hydra = require("hydra")
-local ls = require("luasnip")
-local gitsigns = require("gitsigns")
 local util = require("user.util")
+local alternatives = require("user.alternatives")
+local alternate_pair = alternatives.alternate_pair
+local map_alternate = alternatives.map_alternate
+local keymap = alternatives.keymap
 
 local map = util.map
 local apply = util.apply
@@ -13,51 +12,8 @@ local feedkeys = util.feedkeys
 local t = util.t
 local set_normal_mode = util.set_normal_mode
 
-local register = which_key.register
 local autocmd = vim.api.nvim_create_autocmd
 local fn = vim.fn
-
-local function glob2re(glob)
-	local s = glob
-	s = string.gsub(s, "*", "(.+)")
-	s = string.gsub(s, "{(.-)}", function(str)
-		return "(" .. string.gsub(str, ",", "|") .. ")"
-	end)
-	return s
-end
-
-local function glob2capture(glob)
-	local idx = 0
-	local s = glob
-
-	local function ref()
-		idx = idx + 1
-		return "%" .. idx
-	end
-
-	s = string.gsub(glob, "*", ref)
-	s = string.gsub(s, "{(.-)}", ref)
-	s = string.gsub(s, "%[(.-)%]", ref)
-
-	return s
-end
-
-local function map_alternate(file, pattern, substitute)
-	file = vim.fn.fnamemodify(file, ":~:.")
-
-	local alt = string.gsub(file, pattern, substitute)
-
-	local function printAlt()
-		print(alt)
-	end
-
-	local function open()
-		vim.cmd(string.format("e %s", alt))
-	end
-
-	vim.api.nvim_buf_create_user_command(0, "PrintAlt", printAlt, { force = true })
-	map("n", "<leader>pa", open, { buffer = true })
-end
 
 local function format_async()
 	vim.lsp.buf.format({ async = true })
@@ -91,47 +47,22 @@ local function inspect_workspace_folders()
 end
 
 local function find_config_files()
-	return ts.find_files({ search_dirs = { fn.stdpath("config") } })
+	return require("telescope.builtin").find_files({ search_dirs = { fn.stdpath("config") } })
+end
+local function find_files()
+	require("telescope.builtin").find_files({ find_command = { "fd" } })
 end
 
 local function find_data_files()
-	return ts.find_files({ search_dirs = fn.stdpath("data") })
+	return require("telescope.builtin").find_files({ search_dirs = fn.stdpath("data") })
 end
 
 local function grep_data_files()
-	return ts.live_grep({ cwd = fn.stdpath("data") })
+	return require("telescope.builtin").live_grep({ cwd = fn.stdpath("data") })
 end
 
 local function find_hidden_files()
-	return ts.find_files({ find_command = { "fd", "-u" } })
-end
-
-local group = vim.api.nvim_create_augroup("UserKeymaps", { clear = true })
-
-local function keymap(opts)
-	local events = opts.events or { "BufEnter", "BufWinEnter" }
-
-	autocmd(events, {
-		group = group,
-		pattern = opts.pattern,
-		callback = opts.callback,
-	})
-end
-
-local function altPair(globA, globB)
-	keymap({
-		pattern = { globA },
-		callback = function(args)
-			map_alternate(args.file, glob2re(globA), glob2capture(globB))
-		end,
-	})
-
-	keymap({
-		pattern = { globB },
-		callback = function(args)
-			map_alternate(args.file, glob2re(globB), glob2capture(globA))
-		end,
-	})
+	return require("telescope.builtin").find_files({ find_command = { "fd", "-u" } })
 end
 
 ---@return string[]
@@ -162,65 +93,18 @@ function M.setup()
 		map("n", key, key, { noremap = true })
 	end
 
-	-- Neotest
-	do
-		local neotest = require("neotest")
-
-		map("n", "<leader>tt", function()
-			neotest.run.run()
-		end, { desc = "Nearest test" })
-
-		map("n", "<leader>tf", function()
-			neotest.run.run(vim.fn.expand("%"))
-		end, { desc = "Test file" })
-
-		map("n", "<leader>tS", function()
-			neotest.run.stop()
-		end, { desc = "Stop test" })
-
-		map("n", "<leader>ts", function()
-			neotest.summary.toggle()
-		end, { desc = "Summary" })
-
-		map("n", "<leader>to", function()
-			neotest.output.open()
-		end, { desc = "Open output" })
-
-		map("n", "<leader>tO", function()
-			neotest.output_panel.toggle()
-		end, { desc = "Open output panel" })
-
-		map("n", "<leader>td", function()
-			neotest.diagnostic()
-		end, { desc = "Open output panel" })
-
-		map("n", "<leader>ta", function()
-			neotest.run.attach()
-		end, { desc = "Attach to test" })
-	end
-
 	map("i", "<C-h>", vim.lsp.buf.signature_help)
 
-	map("n", "-", function()
-		vim.cmd.Explore()
-	end, { silent = true })
-
 	map("n", "<C-s>", ":s/<c-r><c-w>//gc<left><left><left>")
-	map("n", "<c-.>", vim.lsp.buf.code_action)
+	-- map("n", "<c-.>", vim.lsp.buf.code_action)
 	map("n", "<c-\\>", format_async)
 	map("n", "<leader>\\", format_async)
-	map("n", "<c-s-o>", "<cmd>Telescope lsp_document_symbols<cr>", { desc = "Document symbols" })
-	map("n", "<m-o>", "<cmd>Telescope lsp_dynamic_workspace_symbols<cr>", { desc = "Workspace symbols" })
 	map("n", "<expr>", "<leader>* '<cmd>Rg!<space>'.expand('<cword>').'<cr>'", { desc = "Rg word under cursor" })
-	map("n", "<leader>/", "<cmd>Telescope live_grep<cr>")
-	map("n", "<leader><space>", "<cmd>Telescope commands<cr>")
 	map("n", "<leader>ay", ":let @+='[[' . expand('%:~') . '::' . line('.') . ']]'<cr>:let @*=@+<cr>:echo @*<cr>")
-	map("n", "<leader>bb", "<cmd>Telescope buffers<cr>")
 	map("n", "<leader>bd", ":bp<cr>:bd #<cr>")
 	map("n", "<leader>e", ":e <c-r>=expand('%:h')<cr>")
 	map("n", "<leader>feR", ":source<cr>")
-	map("n", "<leader>fr", "<cmd>Telescope oldfiles<CR>")
-	map("n", "gr", "<cmd>TroubleToggle lsp_references<CR>")
+	map("n", "grr", vim.lsp.buf.references)
 	map("v", "<C-s>", ":s/")
 
 	-- Copy relative path to clipboard
@@ -236,11 +120,8 @@ function M.setup()
 	map("n", "<leader>hs", "<cmd>Gitsigns stage_hunk<cr>")
 	map("n", "<leader>hr", "<cmd>Gitsigns reset_hunk<cr>")
 	map("n", "<leader>hp", "<cmd>Gitsigns preview_hunk<cr>")
-	map("n", "<leader>gla", "<cmd>Telescope git_commits<cr>")
-	map("n", "<leader>glb", "<cmd>Telescope git_bcommits<cr>")
-	map("n", "<leader>o", "<cmd>SymbolsOutline<cr>")
+	-- map("n", "<leader>o", "<cmd>SymbolsOutline<cr>")
 	map("n", "<leader>pm", ":Marks<cr>")
-	map("n", "<leader>pq", ":KittyPaths<cr>")
 	map("n", "<leader>pp", ":ProjectOpen<cr>")
 	-- map("n", "<leader>tF", ":ZenMode<cr>")
 	-- map("n", "<leader>tf", ":Twilight<cr>")
@@ -255,14 +136,18 @@ function M.setup()
 	map("n", "<space>Wa", vim.lsp.buf.add_workspace_folder)
 	map("n", "<space>Wr", vim.lsp.buf.remove_workspace_folder)
 	map("n", "<space>ee", ":lua vim.diagnostic.open_float()<cr>", { silent = true })
-	map("n", "<space>q", "<cmd>TroubleToggle document_diagnostics<CR>")
-	map("n", "<space>q", "<cmd>TroubleToggle workspace_diagnostics<CR>")
+	-- map("n", "<space>q", "<cmd>TroubleToggle document_diagnostics<CR>")
+	-- map("n", "<space>q", "<cmd>TroubleToggle workspace_diagnostics<CR>")
 	map("n", "<space>rn", vim.lsp.buf.rename)
 	map("n", "K", vim.lsp.buf.hover)
 
-	local gitsigns_opts = { navigation_message = false }
-	map("n", "[c", apply(gitsigns.prev_hunk, gitsigns_opts))
-	map("n", "]c", apply(gitsigns.next_hunk, gitsigns_opts))
+	map("n", "[c", function()
+		require("gitsigns").nav_hunk("prev", { navigation_message = false })
+	end)
+
+	map("n", "]c", function()
+		require("gitsigns").nav_hunk("next", { navigation_message = false })
+	end)
 
 	map("n", "[d", vim.diagnostic.goto_prev)
 	map("n", "]d", vim.diagnostic.goto_next)
@@ -270,8 +155,14 @@ function M.setup()
 	map("n", "gO", vim.lsp.buf.document_symbol)
 	map("n", "gd", vim.lsp.buf.definition, { desc = "go to definition" })
 	map("n", "gi", vim.lsp.buf.implementation)
-	map("n", "zR", require("ufo").openAllFolds)
-	map("n", "zM", require("ufo").closeAllFolds)
+
+	map("n", "zR", function()
+		require("ufo").openAllFolds()
+	end)
+
+	map("n", "zM", function()
+		require("ufo").closeAllFolds()
+	end)
 
 	map("t", "<c-[>", "<c-\\><c-n>")
 
@@ -332,24 +223,32 @@ function M.setup()
 	map("v", "<leader>rr", telescope_refactors, { noremap = true })
 
 	map({ "i", "s" }, "<c-j>", function()
+		local ls = require("luasnip")
+
 		if ls.expand_or_jumpable() then
 			ls.expand_or_jump()
 		end
 	end, { silent = true })
 
 	map({ "i", "s" }, "<c-k>", function()
+		local ls = require("luasnip")
+
 		if ls.jumpable(-1) then
 			ls.jump(-1)
 		end
 	end, { silent = true })
 
 	map("i", "<c-l>", function()
+		local ls = require("luasnip")
+
 		if ls.choice_active() then
 			ls.change_choice(1)
 		end
 	end)
 
-	map("i", "<c-u>", require("luasnip.extras.select_choice"))
+	map("i", "<c-u>", function()
+		require("luasnip.extras.select_choice")()
+	end)
 
 	map("i", "<c-.>", vim.lsp.codelens.display)
 
@@ -392,56 +291,25 @@ function M.setup()
 	map("n", "<leader>fel", find_config_files, { desc = "Vim config files" })
 	map("n", "<leader>feL", find_data_files, { desc = "Data config files" })
 	map("n", "<leader>feL", grep_data_files, { desc = "Search Vim data" })
-	map("n", "<leader>ff", apply(ts.find_files, { find_command = { "fd" } }), { desc = "Find files" })
+
+	map("n", "<leader>ff", find_files, { desc = "Find files" })
+
 	map("n", "<leader>fF", find_hidden_files, { desc = "Find files w/ hidden" })
-	map("n", "<leader>pf", ts.git_files, { desc = "Git files" })
-	map("n", "<leader>pg", ts.git_status, { desc = "Git Status" })
-	map("n", "<M-O>", "<cmd>Telescope jumplist<cr>", { desc = "Jumplist" })
 	map("n", "<leader>gD", "<cmd>Gvdiffsplit!<cr>", { desc = "3-way diff" })
 	map("n", "<leader>gs", "<cmd>G<cr>", { desc = "Git status" })
-	map("n", "<leader>ss", ts.current_buffer_fuzzy_find, { desc = "Search current buffer" })
-	map("n", "<leader>hh", "<cmd>Telescope help_tags<cr>", { desc = "Help tags" })
-	map("n", "<leader>hm", "<cmd>Telescope man_pages<cr>", { desc = "Man Pages" })
 
-	register({
-		h = {
-			name = "Vim",
-			d = {
-				name = "Describe",
-				f = { "<cmd>P! function<cr>", "Functions" },
-				v = { "<cmd>P! verbose let<cr>", "Variables" },
-				m = { "<cmd>Telescope keymaps<cr>", "Keymaps" },
-			},
-		},
-		l = {
-			name = "LSP",
-			d = {
-				name = "Document",
-				s = { "<cmd>Telescope lsp_document_symbols<cr>", "Document symbols" },
-			},
-			w = {
-				name = "Workspace",
-				d = { "<cmd>Telescope lsp_workspace_diagnostics<cr>", "Diagnostics" },
-				s = { "<cmd>Telescope lsp_workspace_symbols<cr>", "Diagnostics" },
-			},
-			R = { "<cmd>LspRestart<cr>", "Restart" },
-			I = { "<cmd>LspInfo<cr>", "Info" },
-			s = { "<cmd>LspStart<cr>", "Start" },
-			S = { "<cmd>LspStart<cr>", "Stop" },
-		},
-	}, { prefix = "<leader>" })
+	map("n", "<leader>hdf", "<cmd>P! function<cr>", { desc = "Describe: Functions" })
+	map("n", "<leader>hdv", "<cmd>P! verbose let<cr>", { desc = "Describe: Variables" })
+
+	map("n", "<leader>lR", "<cmd>LspRestart<cr>", { desc = "LSP: Restart" })
+	map("n", "<leader>lI", "<cmd>LspInfo<cr>", { desc = "LSP: Info" })
+	map("n", "<leader>ls", "<cmd>LspStart<cr>", { desc = "LSP: Start" })
+	map("n", "<leader>lS", "<cmd>LspStart<cr>", { desc = "LSP: Stop" })
 
 	-- Toggle keymaps
 	for _, key in ipairs({ "b", "c", "d", "h", "i", "l", "n", "r", "s", "u", "v", "w", "x" }) do
 		map("n", ("<leader>T" .. key), ("yo" .. key))
 	end
-
-	keymap({
-		pattern = { "*_spec.lua" },
-		callback = function(args)
-			map("n", "<leader>tt", "<plug>PlenaryTestFile", {})
-		end,
-	})
 
 	keymap({
 		pattern = { "*.lua" },
@@ -495,15 +363,21 @@ function M.setup()
 	})
 
 	-- Haskell
-	altPair("src/*.hs", "test/*Spec.hs")
+	alternate_pair("src/*.hs", "test/*Spec.hs")
 
 	-- Elixir
-	altPair("lib/*.ex", "test/*_test.exs")
+	alternate_pair("lib/*.ex", "test/*_test.exs")
 
-	altPair("lib/*/live/*.ex", "lib/*/live/*.html.heex")
+	alternate_pair("lib/*/live/*.ex", "lib/*/live/*.html.heex")
+
+	-- Ruby
+	alternate_pair("app/*.rb", "test/*_test.rb")
+	alternate_pair("test/*_test.rb", "app/*.rb")
 
 	-- Lua
-	altPair("lua/*.lua", "test/*_spec.lua")
+	alternate_pair("lua/*.lua", "tests/*_spec.lua")
 end
+
+alternatives.setup()
 
 return M

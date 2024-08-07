@@ -158,4 +158,9 @@ ls.add_snippets("lua", {
 			end)
 		]]
 	),
+	parse("@t", [[---@type $0]]),
+	parse("@p", [[---@param $0]]),
+	parse("@r", [[---@return $0]]),
+	parse("@f", [[---@field $0]]),
+	parse("@c", [[---@class $0]]),
 }, { key = "lua" })

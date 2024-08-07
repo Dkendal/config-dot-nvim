@@ -30,6 +30,7 @@ for _, lang in ipairs({
 	"golang",
 	"lua",
 	"rust",
+	"eruby",
 }) do
 	require("user/snippets/" .. lang)
 end

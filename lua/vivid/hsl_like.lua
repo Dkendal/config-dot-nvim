@@ -1,5 +1,5 @@
-local clamp = require('nvim-treeclimber.math').clamp
-local round = require('nvim-treeclimber.math').round
+local clamp = require('vivid.math').clamp
+local round = require('vivid.math').round
 
 --
 -- HSL-like colour functions

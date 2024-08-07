@@ -22,10 +22,52 @@ local fmta = require("luasnip.extras.fmt").fmta
 local types = require("luasnip.util.types")
 local conds = require("luasnip.extras.expand_conditions")
 
+local function get_module_name()
+	local mix = vim.fn.findfile("mix.exs", ".;") -- Find mix.exs in current dir or up.
+	mix = vim.fn.fnamemodify(mix, ":p:h")
+	local path = vim.api.nvim_buf_get_name(0)
+	path = vim.fn.fnamemodify(path, ":p:r")
+	local s, e = string.find(path, mix, 1, true)
+	path = string.sub(path, e + 2, -1)
+	local text = path
+
+	-- Remove the leading "lib/" or "test/"
+	if string.sub(text, 1, 4) == "lib/" then
+		text = string.sub(text, 5, -1)
+	elseif string.sub(text, 1, 5) == "test/" then
+		text = string.sub(text, 6, -1)
+	end
+
+	text = string.gsub(text, "^(%w)", function(c)
+		return string.upper(c)
+	end)
+
+	text = string.gsub(text, "/(%w)", function(c)
+		return "." .. string.upper(c)
+	end)
+
+	text = string.gsub(text, "_(%w)", function(c)
+		return string.upper(c)
+	end)
+
+	return text
+end
+
 ls.add_snippets("elixir", {
 	parse("i", "IO.inspect($1)", {}),
+	parse(
+		"fn",
+		[[
+			fn $1 ->
+				$0
+			end
+		]],
+		{}
+	),
 	parse("<<", "<%= $0 %>", {}),
+
 	parse("<", "<% $0 %>", {}),
+
 	parse(
 		"<for",
 		[[
@@ -79,42 +121,39 @@ ls.add_snippets("elixir", {
 		"defm",
 		fmt(
 			[[
-		defmodule {module_name} do
-			{inner_block}
-		end
-	]],
+				defmodule {module_name} do
+					{inner_block}
+				end
+			]],
 			{
 				module_name = ls.dynamic_node(1, function(args)
-					local mix = vim.fn.findfile("mix.exs", ".;") -- Find mix.exs in current dir or up.
-					mix = vim.fn.fnamemodify(mix, ":p:h")
-					local path = vim.api.nvim_buf_get_name(0)
-					path = vim.fn.fnamemodify(path, ":p:r")
-					local s, e = string.find(path, mix, 1, true)
-					path = string.sub(path, e + 2, -1)
-					local text = path
-
-					-- Remove the leading "lib/" or "test/"
-					if string.sub(text, 1, 4) == "lib/" then
-						text = string.sub(text, 5, -1)
-					elseif string.sub(text, 1, 5) == "test/" then
-						text = string.sub(text, 6, -1)
-					end
-
-					text = string.gsub(text, "^(%w)", function(c)
-						return string.upper(c)
-					end)
-
-					text = string.gsub(text, "/(%w)", function(c)
-						return "." .. string.upper(c)
-					end)
-
-					text = string.gsub(text, "_(%w)", function(c)
-						return string.upper(c)
-					end)
-
+					local text = get_module_name()
 					return ls.snippet_node(nil, ls.insert_node(1, text))
 				end),
-				inner_block = i(2),
+
+				inner_block = ls.dynamic_node(2, function(args)
+					local text = get_module_name()
+
+					local re = vim.regex("Test$")
+
+					if re:match_str(text) then
+						local module_name = string.sub(text, 1, -5)
+
+						return ls.snippet_node(nil, {
+							ls.indent_snippet_node(1, {
+								ls.text_node({
+									"use ExUnit.Case, async: true",
+									"doctest " .. module_name .. ", import: true",
+									"",
+									"alias " .. module_name,
+								}),
+								i(1),
+							}, "\t"),
+						})
+					end
+
+					return ls.snippet_node(nil, { i(0) })
+				end),
 			}
 		)
 	),

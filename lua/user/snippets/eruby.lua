@@ -22,13 +22,6 @@ local fmta = require("luasnip.extras.fmt").fmta
 local types = require("luasnip.util.types")
 local conds = require("luasnip.extras.expand_conditions")
 
-ls.add_snippets("rust", {
-	parse("p", [[println!("{$1}");]], {}),
-	parse("i", [[dbg!($1);]], {}),
-	parse(".c", [[.collect::<Vec<_>>()]], {}),
-	parse("f", [[format!("{}", $1);]], {}),
-	parse("d", [[Default::default()]], {}),
-	parse("t", [[todo!($1);]], {}),
-	parse("pa", [[panic!($1);]], {}),
-	parse("u", [[unreachable!($1);]], {}),
-}, { key = "rust" })
+ls.add_snippets("eruby", {
+	parse("##", [[<%# ${LS_SELECT_DEDENT:$0} %>]], {}),
+}, { key = "eruby" })

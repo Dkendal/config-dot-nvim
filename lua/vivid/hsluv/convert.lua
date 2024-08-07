@@ -2,7 +2,7 @@
 --
 -- Work actually performed by hsluv lib
 
-local lib = require("nvim-treeclimber.vivid.hsluv.lib")
+local lib = require("vivid.hsluv.lib")
 -- small 5.2+ compat so we can require elsewhere
 local unpack = unpack or table.unpack
 

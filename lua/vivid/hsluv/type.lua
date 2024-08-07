@@ -1,5 +1,5 @@
-local hsluv_convert = require('nvim-treeclimber.vivid.hsluv.convert')
-local hsl_like = require('nvim-treeclimber.vivid.hsl_like')
+local hsluv_convert = require('vivid.hsluv.convert')
+local hsl_like = require('vivid.hsl_like')
 
 --
 -- HSLuv Color
